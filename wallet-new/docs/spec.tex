@@ -1,12 +1,12 @@
 \documentclass{article}
 \usepackage[margin=2.5cm]{geometry}
-\usepackage{amsmath, amssymb, stmaryrd, latexsym, amsthm}
+\usepackage{amsmath, amssymb, stmaryrd, latexsym, amsthm, mathtools}
 \usepackage{mathpazo, times}
 \usepackage{float}
 \usepackage{listings}
 \usepackage{url}
 \usepackage{natbib}
-\usepackage{parskip}
+% \usepackage{parskip} % very ugly with lemmas, invariants, etc without intervening text
 \usepackage{todonotes}
 \usepackage{slashed}
 \usepackage{tikz}
@@ -23,10 +23,11 @@
 \DeclareMathOperator{\range}{range}
 \DeclareMathOperator*{\argmin}{arg\,min} % thin space, limits underneath in displays
 
-\newtheorem{proofobligation}{Proof Obligation}
-\newtheorem{lemma}{Lemma}
-\newtheorem{invariant}{Invariant}
-\newtheorem{definition}{Definition}
+% Number within sections, and don't have separate counters for separate envs
+\newtheorem{lemma}{Lemma}[section] % Number within sections
+\newtheorem{invariant}[lemma]{Invariant}
+\newtheorem{proofobligation}[lemma]{Proof Obligation}
+\newtheorem{definition}[lemma]{Definition}
 
 \numberwithin{equation}{lemma}
 
@@ -304,6 +305,28 @@ Here is just one example:
 = & ~ (\mathit{ins} \restrictdom u) \cup (\mathit{ins} \restrictdom v)
 \end{align*}
 \end{proof}
+
+We will also make use of two preorders on UTxOs:
+
+\begin{definition}[$u \subseteq v$]
+We will write $u \subseteq v$ whenever
+\begin{equation*}
+\forall (\mathit{tx}, i)  \mapsto (\mathit{addr}, c) \in u \cdot
+(\mathit{tx}, i)  \mapsto (\mathit{addr}, c) \in v
+\end{equation*}
+\end{definition}
+
+\begin{definition}[$u \sqsubseteq v$]
+We will write $u \sqsubseteq v$ whenever $u \subseteq v$ and moreover
+\begin{equation*}
+\forall (\mathit{tx}, i)  \mapsto (\mathit{addr}, c) \in u \cdot
+\forall (\mathit{tx}, i') \mapsto (\mathit{addr}', c') \in v \cdot
+(\mathit{tx}, i') \mapsto (\mathit{addr}', c') \in u
+\end{equation*}
+\end{definition}
+
+The latter preorder corresponds to a subset of the \emph{transactions}
+in the UTxO, rather than the individual outputs.
 
 \subsection{Other auxiliary operations}
 
@@ -730,36 +753,43 @@ balance for the UTxO to address this problem.
 
 \subsection{Factoring out the UTxO balance}
 
-Suppose we have a wallet state $(utxo, pending)$, with
-%
+\begin{lemma}
+\begin{equation*}
+  \mathsf{availableBalance} ~ (utxo, pending)
+= \mathsf{balance} ~ utxo - \mathsf{balance} ~ (\mathsf{txins} ~ pending \restrictdom utxo)
+\end{equation*}
+\label{lem:availableBalance}
+\end{lemma}
+
+\begin{proof}
 \begin{align*}
-a & = \mathsf{availableBalance} ~ (utxo, pending) \\
-t & = \mathsf{totalBalance} ~ (utxo, pending)
-%
-\intertext{Expanding definitions we have}
-%
-a & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending)) \\
-t & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending) \cup \mathsf{change} ~ pending)
-%
-\intertext{Use Lemma~\ref{lem:balance_props_union} to
-distribute $\mathsf{balance}$ over $\cup$. The lemma's antecedent is satisfied
-by Invariant~\ref{inv:change_vs_available}.}
-%
-a & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending)) \\
-t & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending)) \\
-  & + \mathsf{balance} ~ (\mathsf{change} ~ pending)
-%
-\intertext{Expanding definitions and simplifying we get}
-%
-a & = \mathsf{balance} ~ (\mathsf{txins} ~ pending \subtractdom utxo) \\
-t & = a + \mathsf{balance} ~ (\mathsf{change} ~ pending)
-%
-\intertext{Finally, we apply
-Lemma~\ref{lem:balance_props_minus} to distribute
-$\mathsf{balance}$ over $\subtractdom$, to get}
-%
-a & = \mathsf{balance} ~ utxo - \mathsf{balance} ~ (\mathsf{txins} ~ pending \restrictdom utxo)
+  & ~ \mathsf{availableBalance} ~ (utxo, pending) \\
+= & ~ \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending)) \\
+= & ~ \mathsf{balance} ~ (\mathsf{txins} ~ pending \subtractdom utxo) \\
+= & ~ \mathsf{balance} ~ utxo - \mathsf{balance} ~ (\mathsf{txins} ~ pending \restrictdom utxo)
+  & \text{\{ Lemma~\ref{lem:balance_props_minus} \}}
 \end{align*}
+\end{proof}
+
+\begin{lemma}
+\begin{equation*}
+  \mathsf{totalBalance} ~ (utxo, pending)
+= \mathsf{availableBalance} ~ (utxo, pending)
++ \mathsf{balance} ~ (\mathsf{change} ~ pending)
+\end{equation*}
+\label{lem:totalBalance}
+\end{lemma}
+
+\begin{proof}
+\begin{align*}
+   & ~ \mathsf{totalBalance} ~ (utxo, pending) \\
+ = & ~ \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending) \cup \mathsf{change} ~ pending) \\
+ = & ~ \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending))
+     + \mathsf{balance} ~ (\mathsf{change} ~ pending)
+   & \text{ \{ Lemma~\ref{lem:balance_props_union}, Invariant~\ref{inv:change_vs_available} \}} \\
+=  & ~ \mathsf{availableBalance} ~ (utxo, pending) + \mathsf{balance} ~ (\mathsf{change} ~ pending)
+\end{align*}
+\end{proof}
 
 Note the complexity of these operations
 %
@@ -773,10 +803,9 @@ Note the complexity of these operations
 %
 Only the first is expensive. This suggests that we should at least cache the
 balance of the UTxO. If we only cache the UTxO then the available and total
-balances are not too expensive to compute.
-
-Of course we could cache more, but each extra value we cache adds complexity to
-the design, and additional proof obligations.
+balances are not too expensive to compute. Of course we could cache more, but
+each extra value we cache adds complexity to the design, and additional proof
+obligations.
 
 \subsection{Keeping cached balance up to date}
 \label{sec:applyBlock_incr}
@@ -1036,7 +1065,6 @@ in the blockchain, and may be beneficial elsewhere also.
 \end{itemize}
 
 \section{Rollback}
-\label{sec:rollback}
 
 The possible presence of forks in the blockchain means that we may occassionally
 have to roll back and ``undo'' calls to $\mathsf{applyBlock}$, reverting to an
@@ -1050,8 +1078,7 @@ into the block chain; indeed, may already have made it into the fork that we are
 transitioning to. In other words, rolling back may \emph{increase} the size of
 the pending set but never decrease it.
 
-\subsection{Basic rollback model}
-\label{sec:rollback_spec}
+\subsection{Model}
 
 \begin{figure}
 %
@@ -1081,34 +1108,37 @@ the pending set but never decrease it.
 %
 \begin{align*}
 \mathsf{available} ~ (\mathit{utxo}, \mathit{pending})
-   & = \mathsf{txins} ~ \mathit{pending} \subtractdom \mathit{utxo} \tag{unchanged} \\
+   & = \mathsf{txins} ~ \mathit{pending} \subtractdom \mathit{utxo} & \text{(unchanged)} \\
 \mathsf{change} ~ \mathit{pending}
    & = \mathsf{txins} ~ \mathit{pending} \subtractdom (\mathsf{txouts} ~ \mathit{pending} \restrictrange \mathsf{TxOut_{ours}})
 \end{align*}
 %
-\caption{\label{fig:basic_rollback_model}Basic rollback model}
+\caption{\label{fig:basic_rollback_model}Basic model with rollback}
 \end{figure}
 
-The basic rollback is shown in Figure~\ref{fig:basic_rollback_model}. In this
-model the wallet state is a list of \emph{checkpoints}, the value of the wallet
-at various times throughout its lifetime; each call to $\mathsf{applyBlock}$
-introduces a new checkpoint. The initial wallet is the singleton list; We cannot
-roll back a wallet that contains only a single checkpoint (a rollback before any
-blocks have been applied would anyway not make semantic sense).
+The basic model with support for rollback is shown in
+Figure~\ref{fig:basic_rollback_model}. In this model the wallet state is a list
+of \emph{checkpoints}, the value of the wallet at various times throughout its
+lifetime; each call to $\mathsf{applyBlock}$ introduces a new checkpoint. The
+initial wallet is the singleton list; We cannot roll back a wallet that contains
+only a single checkpoint (a rollback before any blocks have been applied would
+anyway not make semantic sense).
 
 After a rollback we have transactions in $\mathit{pending}$ that spend inputs
 that are not available in wallet's UTxO (we will explore this issue in detail in
-the next section). Nonetheless, the definition of $\mathsf{available}$ can
+Section~\ref{sec:tracking_expected_UTxO}). Nonetheless, the definition of $\mathsf{available}$ can
 remain pretty much unchanged, since that only considers inputs that \emph{are}
 in the UTxO anyway.
 
 However, rollbacks also mean that we have end up with pending transactions that
 depend on other pending transactions. This means that the definition of
 $\mathsf{change}$ must be modified to remove any outputs that are spent by other
-pending transactions. Note that the precondition to $\mathsf{newPending}$ still
+pending transactions. Note that the precondition to $\mathsf{newPending}$
 continues to ensure that we cannot introduce any \emph{new} dependent pending
 transactions. This is still useful for keeping the number of dependent
 transactions down.
+
+\subsection{Properties}
 
 \begin{lemma} \label{lem:rollback_applyBlock_id}
 \begin{equation*}
@@ -1125,7 +1155,7 @@ transactions down.
          : (u, p) : \mathit{cs}
          ) \\
 = ~ & (u, (\mathsf{updatePending} ~ b ~ p) \cup p) : \mathit{cs} \\
-= ~ & (u, \mathit{pending}) : \mathit{cs} & \text{\{ Lemma~\ref{lem:updatePending_is_filter} \}}
+= ~ & (u, p) : \mathit{cs} & \text{\{ Lemma~\ref{lem:updatePending_is_filter} \}}
 \end{align*}
 \end{proof}
 
@@ -1157,178 +1187,7 @@ Moreover, we have
 \end{align*}
 \end{proof}
 
-\subsection{Expected UTxO}
-\label{sec:expected_UTxO}
-
-Consider the scenario where the wallet is informed of a new block, containing
-some transaction $t_1$ that transfers funds to the wallet. These funds are
-added to the wallet's UTxO, and hence the wallet may now create a pending
-transaction $t_2$ that depends on $t_1$ (spends one or more of $t_1$'s outputs).
-If we now roll back, we will have a pending transaction that depends on a
-transaction which has not yet been included in the blockchain. Let's call
-such a transaction ``expected''.
-
-\begin{definition}[Expected transaction]
-An expected transaction is a transaction that transfers funds \emph{to}
-the wallet, which we expect to be included in the blockchain in the future,
-but hasn't yet.
-\end{definition}
-
-The wallet may wish to keep track of such expected transactions (indeed, we
-might unify the concepts of pending and expected). Tracking expected
-transactions has some benefits. For instance, the wallet may in fact wish to
-\emph{resubmit} these (already signed) expected transactions to make sure that
-they make it into the fork (so as to not miss out on a large inbound payment).
-Consider however how much information the wallet would need to keep in order
-to make this possible. In the worst case, the inbound transaction may depend
-on the \emph{entire} blockchain up until this point, and that \emph{entire}
-blockchain might have been rolled back. This means that the wallet would have
-to keep track of the entire blockchain in its state, which is something we're
-trying to avoid. Even if we take into account the security parameter $k$, it
-would mean that in the worst case the wallet would have to keep track of the
-last $k$ blocks \emph{in their entirety} (as opposed to just the inputs from
-and outputs to addressed owned by the wallet). Indeed, as stated so far,
-the wallet does not keep track of transactions \emph{at all}, apart from the
-ones submitted by the wallet itself.
-
-Nonetheless, in order to be able to report a meaningful balance figure in
-the presence of rollbacks (more on that below), it \emph{is} useful to keep
-track of the ``expected UTxO'': the unspent outputs that arise from
-expected transactions. The wallet model that does this is shown in
-Figure~\ref{fig:model_with_expected_UTxO}.
-
-\begin{figure}
-%
-\emph{Wallet state}
-%
-\begin{align*}
-& \mathit{checkpoints} \in [\mathsf{Utxo} \times \mathsf{Pending} \times \mathsf{Utxo}] \\
-& w_\emptyset \in \mathsf{Wallet} = [(\emptyset, \emptyset, \emptyset)]
-\end{align*}
-%
-\emph{Updates}
-%
-\begin{align*}
-& \mathsf{applyBlock} ~ b ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
-& \qquad \phantom{:{}} ~ (\mathsf{updateUTxO} ~ b ~ \mathit{utxo}, \mathsf{updatePending} ~ b ~ \mathit{pending}, \mathsf{updateExpected} ~ b ~ \mathit{expected}) \\
-& \qquad : (\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints} \\
-& \mathsf{newPending} ~ \mathit{tx} ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
-& \qquad (\mathit{utxo}, \mathit{pending} \cup \{\mathit{tx}\}, \mathit{expected}) : \mathit{checkpoints} \\
-& \mathsf{rollback} ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : (\mathit{utxo}', \mathit{pending}', \mathit{expected}') : \mathit{checkpoints}) = \\
-& \qquad (\mathit{utxo}', \mathit{pending} \cup \mathit{pending}', \mathit{expected} \cup \mathit{expected}' \cup (\dom \mathit{utxo}' \subtractdom \mathit{utxo})) : \mathit{checkpoints} \\
-\end{align*}
-%
-\emph{Auxiliary}
-%
-\begin{equation*}
-\mathsf{updateExpected} ~ b ~ \mathit{expected} = \mathsf{txins} ~ b \subtractdom \mathit{expected}
-\end{equation*}
-%
-\caption{\label{fig:model_with_expected_UTxO}Model with rollback and expected UTxO}
-\end{figure}
-
-A trivial fact we need later is that
-%
-\begin{lemma} \label{lem:updateExpected_is_filter}
-\begin{math}
-\mathsf{updateExpected} ~ b ~ \mathit{expected} \subseteq \mathit{expected}
-\end{math}
-\end{lemma}
-
-We should have the invariant that the expected UTxO and actual UTxO are always disjoint:
-
-\begin{invariant}
-For each checkpoint $(\mathit{utxo}, \mathit{pending}, \mathit{expected})$ in a wallet $w$,
-\begin{equation*}
-\dom \mathit{utxo} \cap \dom \mathit{expected} = \emptyset
-\end{equation*}
-\end{invariant}
-
-Like the actual UTxO, the expected UTxO belongs to the wallet
-
-\begin{invariant}
-For each checkpoint $(\mathit{utxo}, \mathit{pending}, \mathit{expected})$ in a wallet $w$,
-\begin{equation*}
-\range \mathit{expected} \subseteq \mathsf{TxOut}_\mathsf{ours}
-\end{equation*}
-\end{invariant}
-
-This is the equivalent of Invariant~\ref{inv:utxo_is_ours}, and follows
-straight-forwardly from it because $\mathit{expected}$ is derived from
-$\mathit{utxo}$.
-
-Finally, we have to weaken Invariant~\ref{inv:txins_in_dom_utxo} to:
-
-\begin{invariant}
-\begin{equation*}
-\mathsf{txins} ~ pending \subseteq \dom (utxo \cup expected \cup \mathsf{txouts} ~ \mathit{pending})
-\end{equation*}
-\label{inv:txins_in_dom_utxo_expected_pending}
-\end{invariant}
-
-
-%
-When we roll back a block but remember the UTxO we used to have, we
-can, in a sense, ``anticipate'' what we think the future might look like:
-
-\begin{definition}[Anticipate a block]
-\begin{equation*}
-  \mathsf{anticipate} ~ b ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints})
-= ((\mathit{utxo}, \mathit{pending}, \mathit{expected} \cup \mathsf{new} ~ b) : \mathit{checkpoints})
-\end{equation*}
-\end{definition}
-
-We can now formalize the above intuition, providing the moral equivalent
-of Lemma~\ref{lem:rollback_applyBlock_id} in the last section, where we didn't
-track the expected UTxO yet.
-
-\begin{lemma}
-\begin{math}
-  \mathsf{rollback} \circ \mathsf{applyBlock} ~ b = \mathsf{anticipate} ~ b
-\end{math}
-\end{lemma}
-
-\begin{proof}
-\begin{align*}
-  & ~ \mathsf{rollback} ~ \Bigl( \mathsf{applyBlock} ~ b ~ ((u, p, e) : \mathit{cs}) \Bigr) \\
-= & ~ \mathsf{rollback} ~ ((\mathsf{updateUTxO} ~ b ~ u, \mathsf{updatePending} ~ b ~ p, \mathsf{updateExpected} ~ b ~ e) : (u, p, e) : \mathit{cs}) \\
-= & ~ ((u, (\mathsf{updatePending} ~ b ~ p) \cup p,  (\mathsf{updateExpected} ~ b ~ e) \cup e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) \\
-= & ~ ((u, p, e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:updateExpected_is_filter} \} } \\
-= & ~ ((u, p, e \cup \mathsf{new} ~ b) : \mathit{cs}) = \mathsf{anticipate} ~ b ~ ((u, p, e) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:update_remove_dom} \} }
-\end{align*}
-\end{proof}
-
-\subsection{Minimum balance}
-
-When the wallet submits new transactions, we expect all of those transactions
-to be eventually included in the blockchain, but there is no guarantee that this
-will happen: perhaps all will, perhaps only some will, perhaps none will. Let's
-refer to this as ``possible futures''. Then a reasonable question we might ask
-is: what is the wallet's \emph{minimum balance across all possible futures}?
-
-Since any transactions submitted by the wallet can only \emph{decrease} the
-wallet's balance, in the absence of rollbacks the minimum balance is given
-by the balance of the wallet when \emph{all} pending transactions have been
-included. But the situation is more complicated when we take rollback into
-account.
-
-\begin{quote}
-\emph{Note.} We assume that there is no other instance of the wallet
-``out there'', so that this wallet is the only one to can transfer funds
-from the wallet to other accounts. In other words, we assume that expected
-transactions can only \emph{increase} the wallet's balance (and pending
-transactions can only \emph{decrease} it). If this assumption is not satisfied,
-the concept of minimum balance becomes meaningless, since there then always
-a possible future in which the ``other wallet'' spends all of the wallet's
-funds.
-\end{quote}
-
-\subsubsection{Compatibility of pending transactions}
-
-The first question we might ask: is it possible that in the presence of
-rollbacks two different pending transactions spend the same inputs? If so, there
-is no possible future in which both of these transactions are included into the
-blockchain. Fortunately, this is not the case:
+\subsection{Invariants}
 
 \begin{invariant}
 Given a $\mathit{pending}$ set in one of the wallets checkpoints,
@@ -1365,6 +1224,291 @@ that the new transaction $t_1$ used any of these same inputs.
 \todo[inline]{In order to turn this proof sketch into an actual proof
 we'd need to state additional invariants about the checkpoints of the wallet
 and probably prove a stronger induction hypothesis.}
+
+\section{Minimum Balance}
+\label{sec:tracking_expected_UTxO}
+
+In the basic model we have
+%
+\begin{lemma}[Bounds on $\mathsf{totalBalance}$ in basic model]
+\begin{equation*}
+    \mathsf{availableBalance} ~ (\mathit{utxo}, \mathit{pending})
+\le \mathsf{totalBalance}     ~ (\mathit{utxo}, \mathit{pending})
+\le \mathsf{balance} ~ \mathit{utxo}
+\end{equation*}
+\label{lem:bounds_in_basic_model}
+\end{lemma}
+
+\begin{proof}[Proof (sketch)]
+The lower bound is trivial. The upper bound follows from
+Invariant~\ref{inv:txins_in_dom_utxo} ($\mathsf{txins} ~ \mathit{pending}
+\subseteq \dom \mathit{utxo}$).
+\end{proof}
+
+However, Invariant~\ref{inv:txins_in_dom_utxo} no longer holds in the presence
+of rollbacks. Suppose an incoming transaction $t_1$ transfers a large sum to the
+wallet, and the wallet subsequently creates a pending transaction $t_2$ that
+transfers a small percentage of that sum to another address. If we now roll
+back, transaction $t_2$ will be spending an input that isn't (yet) in the
+wallet's UTxO. The $\mathsf{change}$ from that transaction will consequently
+\emph{increase} the wallet's UTxO. While not incorrect (after all, $t_2$ can
+only be confirmed if $t_1$ is too), it is of course rather strange for
+\emph{change} to increase the balance. In this section we therefore extend the
+wallet's model to keep track of ``expected UTxO''---the outputs that we expect
+to become part of the wallet's UTxO---to clarify this situation.
+
+\subsection{Model}
+
+We extend the basic model of the wallet with rollback from
+Figure~\ref{fig:basic_rollback_model} to additionally include the \emph{expected
+UTxO}: the outputs the wallet expects to become available in its UTxO. The new
+model is shown in Figure~\ref{fig:model_with_expected_UTxO}.
+
+\begin{figure}
+%
+\emph{Wallet state}
+%
+\begin{align*}
+& \mathit{checkpoints} \in [\mathsf{Utxo} \times \mathsf{Pending} \times \mathsf{Utxo}] \\
+& w_\emptyset \in \mathsf{Wallet} = [(\emptyset, \emptyset, \emptyset)]
+\end{align*}
+%
+\emph{Updates}
+%
+\begin{align*}
+& \mathsf{applyBlock} ~ b ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
+& \qquad \phantom{:{}} ~ (\mathsf{updateUTxO} ~ b ~ \mathit{utxo}, \mathsf{updatePending} ~ b ~ \mathit{pending}, \mathsf{updateExpected} ~ b ~ \mathit{expected}) \\
+& \qquad : (\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints} \\
+& \mathsf{newPending} ~ \mathit{tx} ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
+& \qquad (\mathit{utxo}, \mathit{pending} \cup \{\mathit{tx}\}, \mathit{expected}) : \mathit{checkpoints} \\
+& \mathsf{rollback} ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : (\mathit{utxo}', \mathit{pending}', \mathit{expected}') : \mathit{checkpoints}) = \\
+& \qquad (\mathit{utxo}', \mathit{pending} \cup \mathit{pending}', \mathit{expected} \cup \mathit{expected}' \cup (\dom \mathit{utxo}' \subtractdom \mathit{utxo})) : \mathit{checkpoints} \\
+\end{align*}
+%
+\emph{Auxiliary}
+%
+\begin{equation*}
+\mathsf{updateExpected} ~ b ~ \mathit{expected} = \mathsf{txins} ~ b \subtractdom \mathit{expected}
+\end{equation*}
+%
+\caption{\label{fig:model_with_expected_UTxO}Model with rollback and expected UTxO}
+\end{figure}
+
+When the wallet rolls back, the unspent outputs that are removed from the
+wallet's UTxO now get added to the expected UTxO. Vice versa, when the
+wallet applies a block, any confirmed outputs are removed from expected.
+
+\subsection{Properties}
+
+A trivial fact we need later is that
+%
+\begin{lemma} \label{lem:updateExpected_is_filter}
+\begin{math}
+\mathsf{updateExpected} ~ b ~ \mathit{expected} \subseteq \mathit{expected}
+\end{math}
+\end{lemma}
+
+When we roll back a block but remember the UTxO we used to have, we
+can, in a sense, ``anticipate'' what we think the future might look like:
+
+\begin{definition}[Anticipate a block]
+\begin{equation*}
+  \mathsf{anticipate} ~ b ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints})
+= ((\mathit{utxo}, \mathit{pending}, \mathit{expected} \cup \mathsf{new} ~ b) : \mathit{checkpoints})
+\end{equation*}
+\end{definition}
+
+We can now formalize the above intuition, providing the moral equivalent
+of Lemma~\ref{lem:rollback_applyBlock_id} in the last section, where we didn't
+track the expected UTxO yet.
+
+\begin{lemma}
+\begin{math}
+  \mathsf{rollback} \circ \mathsf{applyBlock} ~ b = \mathsf{anticipate} ~ b
+\end{math}
+\end{lemma}
+
+\begin{proof}
+\begin{align*}
+  & ~ \mathsf{rollback} ~ \Bigl( \mathsf{applyBlock} ~ b ~ ((u, p, e) : \mathit{cs}) \Bigr) \\
+= & ~ \mathsf{rollback} ~ ((\mathsf{updateUTxO} ~ b ~ u, \mathsf{updatePending} ~ b ~ p, \mathsf{updateExpected} ~ b ~ e) : (u, p, e) : \mathit{cs}) \\
+= & ~ ((u, (\mathsf{updatePending} ~ b ~ p) \cup p,  (\mathsf{updateExpected} ~ b ~ e) \cup e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) \\
+= & ~ ((u, p, e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:updateExpected_is_filter} \} } \\
+= & ~ ((u, p, e \cup \mathsf{new} ~ b) : \mathit{cs}) = \mathsf{anticipate} ~ b ~ ((u, p, e) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:update_remove_dom} \} }
+\end{align*}
+\end{proof}
+
+\subsection{Invariants}
+
+We should have the invariant that the expected UTxO and actual UTxO are always
+disjoint:
+
+\begin{invariant}
+For each checkpoint $(\mathit{utxo}, \mathit{pending}, \mathit{expected})$ in a wallet $w$,
+\begin{equation*}
+\dom \mathit{utxo} \cap \dom \mathit{expected} = \emptyset
+\end{equation*}
+\end{invariant}
+
+Like the actual UTxO, the expected UTxO belongs to the wallet
+
+\begin{invariant}
+For each checkpoint $(\mathit{utxo}, \mathit{pending}, \mathit{expected})$ in a wallet $w$,
+\begin{equation*}
+\range \mathit{expected} \subseteq \mathsf{TxOut}_\mathsf{ours}
+\end{equation*}
+\end{invariant}
+
+This is the equivalent of Invariant~\ref{inv:utxo_is_ours}, and follows
+straight-forwardly from it because $\mathit{expected}$ is derived from
+$\mathit{utxo}$. Finally, we have to weaken
+Invariant~\ref{inv:txins_in_dom_utxo} to:
+
+\begin{invariant}
+\begin{equation*}
+\mathsf{txins} ~ \mathit{pending} \subseteq \dom (\mathit{utxo} \cup \mathit{expected})
+\end{equation*}
+\label{inv:txins_in_dom_utxo_expected_pending}
+\end{invariant}
+
+(Note that $\mathit{expected}$ may include change terms from previously
+confirmed pending transactions.)
+
+\subsection{Bounds on $\mathsf{totalBalance}$}
+
+Now that we keep track of the expected UTxO, we can state the equivalent
+of Lemma~\ref{lem:bounds_in_basic_model} for the wallet with rollback:
+
+\begin{lemma}[Bounds on $\mathsf{totalBalance}$ in the presence of rollback]
+\begin{equation*}
+    \mathsf{availableBalance} ~ (\mathit{utxo}, \mathit{pending})
+\le \mathsf{totalBalance} ~ (\mathit{utxo} \cup \mathit{expected}, \mathit{pending})
+\le \mathsf{balance} ~ (\mathit{utxo} \cup \mathit{expected})
+\end{equation*}
+\label{lem:bounds_in_rollback_model}
+\end{lemma}
+
+\begin{proof}[Proof (sketch)]
+Similar to the proof of Lemma~\ref{lem:bounds_in_basic_model}. The lower bound
+is trivial, and the upper bound follows from
+Invariant~\ref{inv:txins_in_dom_utxo_expected_pending}.
+\end{proof}
+
+Although we additionally trivially have that
+%
+\begin{equation*}
+    \mathsf{totalBalance} ~ (\mathit{utxo}, \mathit{pending})
+\le \mathsf{totalBalance} ~ (\mathit{utxo} \cup \mathit{expected}, \mathit{pending})
+\end{equation*}
+%
+that expression
+\begin{math}
+\mathsf{totalBalance} ~ (\mathit{utxo}, \mathit{pending})
+\end{math}
+is not particularly meaningful when
+\begin{equation*}
+\mathsf{txins} ~ \mathit{pending} \mathbin{\slashed\subseteq} \dom (\mathit{utxo} \cup \mathsf{change} ~ \mathit{pending})
+\end{equation*}
+(as discussed at the start of Section~\ref{sec:tracking_expected_UTxO}).
+Nonetheless, we would like to establish a bound on the wallet's balance in
+between
+\begin{math}
+\mathsf{availableBalance} ~ (\mathit{utxo}, \mathit{pending})
+\end{math},
+which removes all inputs spent by pending transactions but does not add back
+any of the change, and
+\begin{math}
+\mathsf{totalBalance} ~ (\mathit{utxo} \cup \mathit{expected}, \mathit{pending})
+\end{math},
+which assumes that the expected unspent outputs will all become available.
+
+\subsection{Minimum balance}
+
+In the basic model, when the wallet submits a bunch of pending transactions, it
+expects all of those transactions to eventually be included in the blockchain.
+Of course, there is no guarantee that this will happen: maybe some will, maybe
+none will, or maybe all will be included. The situation is more complicated in
+the model with rollback. When a pending transaction depends on an expected
+output, it can never happen that that pending transaction is confirmed but the
+expected incoming transaction is not. Let's refer to these subsets of confirmed
+pending and expected transactions as ``possible futures''. Then a reasonable
+question we might ask is: what is the wallet's \emph{minimum balance across all
+possible futures}?
+
+\begin{quote}
+\emph{Note.} We assume that there is no other instance of the wallet
+``out there'', so that this wallet is the only one to can transfer funds
+from the wallet to other accounts. In other words, we assume that expected
+transactions can only \emph{increase} the wallet's balance (and pending
+transactions can only \emph{decrease} it). If this assumption is not satisfied,
+the concept of minimum balance becomes meaningless, since there then always
+a possible future in which the ``other wallet'' spends all of the wallet's
+funds.
+\end{quote}
+
+Since we only keep track of the expected UTxO, and therefore miss dependency
+information, we cannot determine if two expected transactions can both be
+confirmed in the blockchain. We will therefore conservatively\footnote{ Note
+that the absence of some dependency information only gives us \emph{more}
+freedom in picking the elements of this set; thus, missing dependency
+information may make the lower bound that we establish less accurate, but it
+will still be a lower bound.} estimate the minimum balance as
+%
+\begin{definition}[Minimum balance]
+\begin{equation*}
+  \mathsf{minimumBalance} ~ (\mathit{utxo}, \mathit{pending}, \mathit{expected})
+= \left.
+  \bigsqcup_{\begin{smallmatrix}
+              e & \sqsubseteq & \mathit{expected} \\
+              p & \subseteq   & \mathit{pending}
+            \end{smallmatrix}}
+  \right|_{\mathrlap{\mathsf{txins} ~ p \subseteq \dom(\mathit{utxo} \cup e)}}
+  ~ \mathsf{totalBalance} ~ (\mathit{utxo} \cup e, p)
+\end{equation*}
+\end{definition}
+
+\begin{lemma}
+If $\mathsf{txins} ~ \mathit{pending} \subseteq \mathit{utxo}$,
+\begin{equation*}
+  \mathsf{minimumBalance} ~ (\mathit{utxo}, \mathit{pending}, \mathit{expected})
+= \mathsf{totalBalance} ~ (\mathit{utxo}, \mathit{pending})
+\end{equation*}
+\end{lemma}
+
+\todo[inline]{How does this relate to the bounds we started with in this section?}
+
+
+
+
+\cleardoublepage
+
+\section{OLD: Rollback}
+\label{sec:rollback}
+
+
+
+\subsection{Expected UTxO}
+\label{sec:expected_UTxO}
+
+The wallet may wish to keep track of such expected transactions (indeed, we
+might unify the concepts of pending and expected). Tracking expected
+transactions has some benefits. For instance, the wallet may in fact wish to
+\emph{resubmit} these (already signed) expected transactions to make sure that
+they make it into the fork (so as to not miss out on a large inbound payment).
+Consider however how much information the wallet would need to keep in order
+to make this possible. In the worst case, the inbound transaction may depend
+on the \emph{entire} blockchain up until this point, and that \emph{entire}
+blockchain might have been rolled back. This means that the wallet would have
+to keep track of the entire blockchain in its state, which is something we're
+trying to avoid. Even if we take into account the security parameter $k$, it
+would mean that in the worst case the wallet would have to keep track of the
+last $k$ blocks \emph{in their entirety} (as opposed to just the inputs from
+and outputs to addressed owned by the wallet). Indeed, as stated so far,
+the wallet does not keep track of transactions \emph{at all}, apart from the
+ones submitted by the wallet itself.
+
+
+
 
 \subsubsection{Compatibility of expected transactions}
 \label{sec:compat_of_expected_trans}
@@ -1607,10 +1751,7 @@ conservative.
 The goal then is to pick a set $S$ of pending and expected transactions that
 minimizes the wallet's balance, and is self-consistent in the sense that if $t_1
 \in S$ and $t_1$ has a known dependency on $t_2$, then $t_2$ also in $S$ (or in
-the wallet's UTxO). Note that the absence of some dependency information only
-gives us \emph{more} freedom in picking the elements of this set; thus, missing
-dependency information may make the lower bound that we establish less accurate,
-but it will still be a lower bound.
+the wallet's UTxO).
 
 One possibility is simply to assume that there are no dependencies at all. In
 this case the minimum balance is given by $S = \mathit{pending}$ (i.e., assuming
@@ -1663,69 +1804,17 @@ balance from the expected transactions.
 \subsubsection{Computing the minimum balance}
 \label{sec:computing_minimum_balance}
 
-\begin{definition}[Transactions in a UTxO]
-\begin{equation*}
-  \mathsf{txids} ~ \mathit{utxo}
-= \{ \mathit{txid} \mid (\mathit{txid}, \mathit{ix}) \mapsto (\mathit{addr}, c) \in \mathit{utxo} \ \}
-\end{equation*}
-\end{definition}
+(removed def)
 
-\begin{definition}[Funds transferred to the wallet by expected transaction]
-\begin{equation*}
-  \mathsf{incoming}_\mathit{utxo} ~ \mathit{txid}
-= \sum_{(\mathit{txid}, \mathit{ix}) \mapsto (\mathit{addr}, c) \in \mathit{utxo}} c
-\end{equation*}
-\end{definition}
-
-\begin{definition}[Funds transferred from the wallet by pending transaction]
-\begin{equation*}
-  \mathsf{outgoing} ~ (\mathit{ins}, \mathit{outs})
-= \sum_{(\mathit{addr}, c) \in \mathit{outs}, \neg (\mathsf{ours} ~ \mathit{addr})} c
-\end{equation*}
-\end{definition}
-
-\begin{definition}[Consistency]
-A pair $(\mathcal{E}, \mathcal{P})$ of set $\mathcal{E}$ of expected transaction
-IDs and a set $\mathcal{P}$ of pending transactions is \emph{consistent} iff
-\begin{equation*}
-\forall (\mathit{ins}, \mathit{outs}) \in \mathcal{P} \cdot
-\forall (\mathit{txid}, \mathit{ix}) \in \mathit{ins} \cdot
-\mathit{txid} \in \mathcal{P} \vee \mathit{txid} \in \mathcal{E}
-\end{equation*}
-\end{definition}
-
-\begin{definition}[Difference in balance]
-\begin{equation*}
-  \Delta_\mathit{utxo}(\mathcal{E}, \mathcal{P})
-= \sum_{\mathit{txid} \in \mathcal{E}} \mathsf{incoming}_\mathit{utxo} ~ \mathit{txid}
-- \sum_{\mathit{tx} \in \mathcal{P}} \mathsf{outgoing} ~ \mathit{tx}
-\end{equation*}
-\end{definition}
-
-\begin{definition}[Future with minimum balance]
-
-\begin{equation*}
-  \mathsf{minimize} ~ (\mathit{utxo}, \mathit{pending}, \mathit{expected})
-= \argmin_{\mathcal{E} \subseteq \mathsf{txids} ~ (\mathit{expected}) ,~
-           \mathcal{P} \subseteq \mathit{pending} ,~
-           \mathit{consistent} ~ (\mathcal{E}, \mathcal{P})
-          }
-  \Delta_\mathit{utxo} (\mathcal{E}, \mathcal{P})
-\end{equation*}
-\end{definition}
-
-\begin{definition}[Minimum balance]
-\todo[inline]{TODO}
-\end{definition}
 
 \begin{lemma}
-For a given set $\mathcal{E}$, finding
+Given an expected UTxO $e$, computing
 %
 \begin{equation*}
-S = \argmin_{\mathcal{P} \subseteq \mathit{pending} ,~
-           \mathit{consistent} ~ (\mathcal{E}, \mathcal{P})
-          }
-    \Delta_\mathit{utxo} (\mathcal{E}, \mathcal{P})
+  \left.
+  \bigsqcup_{p \subseteq \mathit{pending}}
+  \right|_{\mathrlap{\mathsf{txins} ~ p \subseteq \dom(\mathit{utxo} \cup e \cup \mathsf{change} ~ p)}}
+  ~ \mathsf{totalBalance} ~ (\mathit{utxo} \cup e, p)
 \end{equation*}
 %
 can be done in $\order{|\mathit{pending}|}$ time.
@@ -1743,7 +1832,7 @@ to backtrack on any of these decisions:
 balance and can only increase the possibilities for  including further
 transactions)
 \item If we cannot include the transaction because some of its dependencies
-are missing, then any pending transactions we will encouter later in the
+are missing, then any pending transactions we will encounter later in the
 topological order will not change this.
 \end{itemize}
 \end{proof}
@@ -1752,46 +1841,170 @@ This would suggest that the complexity of $\mathsf{minimize}$ is
 exponential in $|\mathit{expected}|$ and linear in $|\mathit{pending}|$,
 but we can do a bit better.
 
-\begin{definition}[Grouping expected transactions]
-Given a set of expected transactions $\mathcal{E}$, let
-$\mathsf{group} ~ \mathcal{E}$ be the set of set of transactions such that
-two transactions are in the same group iff the set of pending transactions
-that (possibly transitively) depend on them overlap.
-\label{def:group_expected}
-\end{definition}
+\begin{lemma}[Grouping expected transactions]
+Group the expected transactions such that two expected transactions are in
+the same group iff their sets of dependent pending transactions overlap.
+Then when we compute the minimum balance we can consider each group of
+expected transactions separately.
+\label{lem:group_expected}
+\end{lemma}
 
 \begin{lemma}
-The complexity of $\mathsf{minimize}$ is given by
+The complexity of $\mathsf{minimumBalance}$ is given by
 \begin{math}
 \order{e + 2^g + p}
 \end{math}
 with $e$ the number of groups of expected transactions
-(Definition~\ref{def:group_expected}), $g$ the size of the largest such group,
+(Lemma~\ref{lem:group_expected}), $g$ the size of the largest such group,
 and $p$ the number of pending transactions.
 \label{lem:complexity_minimize}
 \end{lemma}
 
-\begin{proof}[Proof (sketch)]
-Suffices to show that each group of expected transactions can be considered
-independently. However, this is not hard to see: there are no (known)
-dependencies between the expected transactions in different groups, nor are
-there dependencies between the pending transactions that depend on them (by
-definition), and hence decisions made in one group cannot effect decisions made
-in another.
-\end{proof}
+If $g$ is very large, we can always fall back on a more conservative estimate.
 
-Note that if $g$ (Lemma~\ref{lem:complexity_minimize}) is very large, we can
-always fall back on a more conservative estimate.
+\begin{quote}
+\emph{Note.}
+Expected transactions that coexisted in the blockchain at some point are
+obviously compatible with each other. However, keep track of this information
+does not help us here: we already assume that \emph{all} expected transactions
+are compatible with each other. Knowing when expected transactions are
+\emph{not} compatible with each other would allow us to establish more tighter
+bounds on the minimum balance, but presence or absence of transactions in
+particular forks is not sufficient to conclude incompatibility.
+\end{quote}
+
+
+
+
+
+
+
+\subsection{Reporting balance}
+\label{sec:reporting}
+
+In the presence of rollbacks the interpretation of $\mathsf{change}$ (and
+consequently of $\mathsf{total}$) becomes a bit more subtle, and we should be
+careful with how we present it the user. Consider the following situation:
+%
+\begin{enumerate}
+\item In block $b$ a user receives a large sum of money through transaction
+$t_1$.
+\item The user then submits a transaction $t_2$ that transfers a small
+percentage of that large sum to someone else. At this point $\mathsf{change}$
+would be a large figure.
+\item If we now roll back block $b$, we end up with a UTxO in
+which the user never received the large sum of money in the first place, but
+$\mathsf{change}$ is \emph{still} large.
+\end{enumerate}
+
+This is not incorrect: it is still true that \emph{if and when} $t_2$ gets
+included into the blockchain, transaction $t_1$ must also have been; but this is
+somewhat tentative. Put another way, $\mathsf{change}$ may now anticipate
+transfers \emph{to} the user that have not yet happened.
+
+\begin{quote} \emph{Note.}
+It is of course possible that such missing transactions (like $t_1$ in the
+example above) \emph{never} make it into the new fork, in which case the user's
+transaction ($t_2$) should eventually be removed from $\mathit{pending}$. This
+problem may arise even without rollbacks, however, and cannot be solved until we
+introduce a TTL value for transactions.
+\end{quote}
+
+The question of which balance the wallet reports to the user depends on how
+much uncertainly is acceptable in that number.
+
+\begin{itemize}
+\item Simply reporting $\mathsf{totalBalance}$ assumes that all pending
+transactions will eventually make it into the blockchain.
+\item Reporting the $\mathsf{available}$ and $\mathsf{change}$ balance separately
+assumes that there are no $\mathsf{missing}$ transactions or that they will
+eventually make it into the blockchain.
+\item Reporting $\mathsf{available}$, $\mathsf{change}$ and $\mathsf{expected}$
+balance based on the most recent block will them ``jump'' more frequently
+when there are rollbacks. (Rollbacks are very infrequent in Ouroboros,
+but are expected to be somewhat more common in Ouroboros Praos.)
+\end{itemize}
+
+The most conversative therefore seems to be to report all of
+$\mathsf{available}$, $\mathsf{change}$ and $\mathsf{expected}$, based on the
+state of the wallet some $1 < n \ll k$ slots back (perhaps instead of,
+perhaps in addition to, the values based on the most recent wallet state).
+
+\subsection{Switching to a fork}
+
+Although $\mathsf{rollback}$ is a useful primitive operation on the wallet
+state, in practice the wallet will never ever actually rollback, but rather
+switch to a different fork. The disambiguation rule in the underlying blockchain
+protocol (either Ouroboros or Ouroboros Praos) states that this can only happen
+if that other fork is \emph{longer} than the current one.
+
+It will therefore we useful to provide a higher-level operation that combines
+rolling back with applying the blocks in the new fork:
+
+\begin{equation}
+\mathsf{switch} ~ n ~ \mathit{blocks} = \mathsf{applyBlocks} ~ \mathit{blocks} \circ \mathsf{rollbacks} ~ n
+\end{equation}
+
+where $\mathsf{rollbacks} ~ n$ calls $\mathsf{rollback}$ $n$ times, and
+$\mathsf{applyBlocks}$ calls $\mathsf{applyBlock}$ for all blocks in order.
+Such an operation is important because it means that the intermediate state
+of the wallet during the switch is not visible to the user; this will also
+help with the balance jumping problem mentioned in Section~\ref{sec:reporting}.
+
+\emph{Implementation Note.} The current Cardano API does not provide something
+equivalent to $\mathsf{switch}$, instead providing only hooks that correspond to
+$\mathsf{applyBlocks}$ and $\mathsf{rollbacks}$. The wallet kernel however could
+batch up the calls to $\mathsf{rollbacks}$, and not apply the $n$ rollbacks
+until it has at least $n + m$ ($m \ge 1$) blocks to apply. This solution is not
+ideal, as it is unclear what value to set $m$ to; probably the only workable
+solution is to set a time bound. However, since all these $\mathsf{applyBlocks}$
+will come very close together (\emph{maybe} even as a single call), in practice
+this can probably work reasonably well.
+
+\subsection{Memory requirements}
+
+Obviously, storing all checkpoints of the UTxO leads to unbounded memory usage.
+Thankfully however the blockchain protocol defines a ``security parameter'' $k$
+which guarantees that we will never have to roll back past $k$ slots, and hence
+don't have to store more than $k$ checkpoints. Currently, $k$ is set to 2160;
+for a typical user, the UTxO and pending sets will not be large and keeping
+track of the last 2160 values will not be a huge deal.
+
+\todo[inline]{We should state this formally: define a version of the wallet
+that keeps only $k$ checkpoints and prove that all properties we're interested
+in still hold, given the assumption that we will never roll back more than
+$k$ slots.}
+
+We can also give a more precise upper bound on the memory requirements. Instead
+of storing $k$ UTxO checkpoints, it would also suffice to store the UTxO as it
+was $k$ slots ago, and store all $k$ blocks since the last checkpoint. Since a
+block has a maximum size of 2 MB, this means we need to store at most a little
+over 4 GB of data.
+
+As far as the pending transactions go, with the conservative estimate of 100
+pending transactions per slot, it'd be a maximum 216,000 transactions (plus some
+administrative overhead). At a maximum transaction size of 64 kB, this adds an
+additional 13.5 GB; however, at more typical values of 3 pending transactions
+this reduces to 405 MB, and with a more typical average transaction size of 4
+kB, to a mere 25 MB.
+
+Since rollbacks are relatively rare (especially having to roll back far), it
+would be fine to store this information on disk rather than in memory, and hence
+these memory requirements are no big deal at all. Probably the best engineering
+trade-off will be to store a few checkpoints in memory and the rest on disk.
+
+\todo[inline]{Check storage requirements with persistent data structures and sharing,
+should be something like a log cost for each change}
 
 \subsubsection{Further efficiency improvements}
 
-In the last section we point out that we can group the expected transactions
-such that two expected transactions are in the same group if and only if
-their dependent pending transactions overlap. Then decisions in one group
-clearly cannot affect decisions in another, so that we reduce the complexity
-of finding the minimum balance from exponential in the number of expected
-transactions (which may be large) to exponential in the size of the largest
-group (which will be much smaller).
+In Section~\ref{sec:computing_minimum_balance} we point out that we can group
+the expected transactions such that two expected transactions are in the same
+group if and only if their dependent pending transactions overlap. Then
+decisions in one group clearly cannot affect decisions in another, so that we
+reduce the complexity of finding the minimum balance from exponential in the
+number of expected transactions (which may be large) to exponential in the size
+of the largest group (which will be much smaller).
 
 In this section we make an observation that can reduce this complexity further:
 
@@ -1969,150 +2182,6 @@ e_1 -
 but that contradicts \eqref{eq:e1insufficient}.
 \end{proof}
 
-\subsection{Relation to the basic model}
-
-When there are no rollbacks, the set of expected transactions will be empty, and
-there can be no pending transactions that depend on other pending  transactions.
-This means for example that
-Invariant~\ref{inv:txins_in_dom_utxo_expected_pending} collapes to
-Invariant~\ref{inv:txins_in_dom_utxo}.
-
-\todo[inline]{It would be nice to show a larger set of lemmas, showing how
-in the absence of rollbacks the extended model coincides with the basic model.}
-
-\begin{lemma}
-In the absence of rollback, the minimum balance equals the $\mathsf{total}$
-balance.
-\end{lemma}
-
-\begin{proof}[Proof (sketch)]
-From the definition of minimum balance in
-Section~\ref{sec:computing_minimum_balance}, we can see that the ``minimum
-balance'' arises from $\Delta_\mathit{utxo} (\emptyset, \mathit{pending})$
-(i.e., \emph{all} pending transactions, and there are no expected ones).
-But this corresponds precisely to removing all the inputs from the pending
-transactions and then adding back the change.
-\end{proof}
-
-\todo[inline]{The above proof is horribly wordy. I'd much prefer to have
-clean definitions but the minimum balance computation is a bit messy.}
-
-\subsection{Reporting balance}
-\label{sec:reporting}
-
-In the presence of rollbacks the interpretation of $\mathsf{change}$ (and
-consequently of $\mathsf{total}$) becomes a bit more subtle, and we should be
-careful with how we present it the user. Consider the following situation:
-%
-\begin{enumerate}
-\item In block $b$ a user receives a large sum of money through transaction
-$t_1$.
-\item The user then submits a transaction $t_2$ that transfers a small
-percentage of that large sum to someone else. At this point $\mathsf{change}$
-would be a large figure.
-\item If we now roll back block $b$, we end up with a UTxO in
-which the user never received the large sum of money in the first place, but
-$\mathsf{change}$ is \emph{still} large.
-\end{enumerate}
-
-This is not incorrect: it is still true that \emph{if and when} $t_2$ gets
-included into the blockchain, transaction $t_1$ must also have been; but this is
-somewhat tentative. Put another way, $\mathsf{change}$ may now anticipate
-transfers \emph{to} the user that have not yet happened.
-
-\begin{quote} \emph{Note.}
-It is of course possible that such missing transactions (like $t_1$ in the
-example above) \emph{never} make it into the new fork, in which case the user's
-transaction ($t_2$) should eventually be removed from $\mathit{pending}$. This
-problem may arise even without rollbacks, however, and cannot be solved until we
-introduce a TTL value for transactions.
-\end{quote}
-
-The question of which balance the wallet reports to the user depends on how
-much uncertainly is acceptable in that number.
-
-\begin{itemize}
-\item Simply reporting $\mathsf{totalBalance}$ assumes that all pending
-transactions will eventually make it into the blockchain.
-\item Reporting the $\mathsf{available}$ and $\mathsf{change}$ balance separately
-assumes that there are no $\mathsf{missing}$ transactions or that they will
-eventually make it into the blockchain.
-\item Reporting $\mathsf{available}$, $\mathsf{change}$ and $\mathsf{expected}$
-balance based on the most recent block will them ``jump'' more frequently
-when there are rollbacks. (Rollbacks are very infrequent in Ouroboros,
-but are expected to be somewhat more common in Ouroboros Praos.)
-\end{itemize}
-
-The most conversative therefore seems to be to report all of
-$\mathsf{available}$, $\mathsf{change}$ and $\mathsf{expected}$, based on the
-state of the wallet some $1 < n \ll k$ slots back (perhaps instead of,
-perhaps in addition to, the values based on the most recent wallet state).
-
-\subsection{Switching to a fork}
-
-Although $\mathsf{rollback}$ is a useful primitive operation on the wallet
-state, in practice the wallet will never ever actually rollback, but rather
-switch to a different fork. The disambiguation rule in the underlying blockchain
-protocol (either Ouroboros or Ouroboros Praos) states that this can only happen
-if that other fork is \emph{longer} than the current one.
-
-It will therefore we useful to provide a higher-level operation that combines
-rolling back with applying the blocks in the new fork:
-
-\begin{equation}
-\mathsf{switch} ~ n ~ \mathit{blocks} = \mathsf{applyBlocks} ~ \mathit{blocks} \circ \mathsf{rollbacks} ~ n
-\end{equation}
-
-where $\mathsf{rollbacks} ~ n$ calls $\mathsf{rollback}$ $n$ times, and
-$\mathsf{applyBlocks}$ calls $\mathsf{applyBlock}$ for all blocks in order.
-Such an operation is important because it means that the intermediate state
-of the wallet during the switch is not visible to the user; this will also
-help with the balance jumping problem mentioned in Section~\ref{sec:reporting}.
-
-\emph{Implementation Note.} The current Cardano API does not provide something
-equivalent to $\mathsf{switch}$, instead providing only hooks that correspond to
-$\mathsf{applyBlocks}$ and $\mathsf{rollbacks}$. The wallet kernel however could
-batch up the calls to $\mathsf{rollbacks}$, and not apply the $n$ rollbacks
-until it has at least $n + m$ ($m \ge 1$) blocks to apply. This solution is not
-ideal, as it is unclear what value to set $m$ to; probably the only workable
-solution is to set a time bound. However, since all these $\mathsf{applyBlocks}$
-will come very close together (\emph{maybe} even as a single call), in practice
-this can probably work reasonably well.
-
-\subsection{Memory requirements}
-
-Obviously, storing all checkpoints of the UTxO leads to unbounded memory usage.
-Thankfully however the blockchain protocol defines a ``security parameter'' $k$
-which guarantees that we will never have to roll back past $k$ slots, and hence
-don't have to store more than $k$ checkpoints. Currently, $k$ is set to 2160;
-for a typical user, the UTxO and pending sets will not be large and keeping
-track of the last 2160 values will not be a huge deal.
-
-\todo[inline]{We should state this formally: define a version of the wallet
-that keeps only $k$ checkpoints and prove that all properties we're interested
-in still hold, given the assumption that we will never roll back more than
-$k$ slots.}
-
-We can also give a more precise upper bound on the memory requirements. Instead
-of storing $k$ UTxO checkpoints, it would also suffice to store the UTxO as it
-was $k$ slots ago, and store all $k$ blocks since the last checkpoint. Since a
-block has a maximum size of 2 MB, this means we need to store at most a little
-over 4 GB of data.
-
-As far as the pending transactions go, with the conservative estimate of 100
-pending transactions per slot, it'd be a maximum 216,000 transactions (plus some
-administrative overhead). At a maximum transaction size of 64 kB, this adds an
-additional 13.5 GB; however, at more typical values of 3 pending transactions
-this reduces to 405 MB, and with a more typical average transaction size of 4
-kB, to a mere 25 MB.
-
-Since rollbacks are relatively rare (especially having to roll back far), it
-would be fine to store this information on disk rather than in memory, and hence
-these memory requirements are no big deal at all. Probably the best engineering
-trade-off will be to store a few checkpoints in memory and the rest on disk.
-
-\todo[inline]{Check storage requirements with persistent data structures and sharing,
-should be something like a log cost for each change}
 
 \subsection{Incremental balance computation and prefiltering}
 
