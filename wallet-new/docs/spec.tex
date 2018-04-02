@@ -11,6 +11,7 @@
 \usepackage{slashed}
 \usepackage{tikz}
 \usepackage{forest}
+\usepackage{IEEEtrantools}
 
 \newcommand{\powerset}[1]{\mathbb{P}(#1)}
 \newcommand{\order}[1]{\mathcal{O}\left(#1\right)}
@@ -26,6 +27,8 @@
 \newtheorem{lemma}{Lemma}
 \newtheorem{invariant}{Invariant}
 \newtheorem{definition}{Definition}
+
+\numberwithin{equation}{lemma}
 
 \floatstyle{boxed}
 \restylefloat{figure}
@@ -248,50 +251,50 @@ For convenience we will define a number of operations filter UTxOs:
 \end{align*}
 
 \begin{lemma}[Properties of UTxO operations]
-\begin{alignat}{4}
-  \mathit{ins} \restrictdom u
+\begin{IEEEeqnarray}{RLL}
+  \mathit{ins} & \restrictdom u
 & \subseteq u
-  \tag{1} \label{eq:utxo_props_restrictdom_subseteq}
+  \label{lem:utxo_props_restrictdom_subseteq}
 \\
-  \mathit{ins} \subtractdom u
+  \mathit{ins} & \subtractdom u
 & \subseteq u
-  \tag{2} \label{eq:utxo_props_subtractdom_subseteq}
+  \label{lem:utxo_props_subtractdom_subseteq}
 \\
-  u \restrictrange \mathit{outs}
+  u & \restrictrange \mathit{outs}
 & \subseteq u
-  \tag{3} \label{eq:utxo_props_restrictrange_subseteq}
+  \label{lem:utxo_props_restrictrange_subseteq}
 \\
-  \mathit{ins} \restrictdom (u \cup v)
+  \mathit{ins} \phantom{)} & \restrictdom (u \cup v)
 & = (\mathit{ins} \restrictdom u) \cup (\mathit{ins} \restrictdom v)
-  \tag{4} \label{eq:utxo_props_restrictdom_union}
+  \label{lem:utxo_props_restrictdom_union}
 \\
-  \mathit{ins} \subtractdom (u \cup v)
+  \mathit{ins} \phantom{)} & \subtractdom (u \cup v)
 & = (\mathit{ins} \subtractdom u) \cup (\mathit{ins} \subtractdom v)
-  \tag{5}
+%
 \\
-  (\mathit{ins} \cap \dom u) \restrictdom u
+  (\dom u \cap \mathit{ins}) & \restrictdom u
 & = \mathit{ins} \restrictdom u
-  \tag{6} \label{eq:utxo_props_restrictdom_dom}
+  \label{lem:utxo_props_restrictdom_dom}
 \\
-  (\mathit{ins} \cap \dom u) \subtractdom u
+  (\dom u \cap \mathit{ins}) & \subtractdom u
 & = \mathit{ins} \subtractdom u
-  \tag{7} \label{eq:utxo_props_subtractdom_dom}
+  \label{lem:utxo_props_subtractdom_dom}
 \\
-  (\mathit{ins} \cup \dom u) \subtractdom u \cup v
+  (\dom u \cup \mathit{ins}) & \subtractdom u \cup v
 & = (\mathit{ins} \cup \dom u) \subtractdom v
-  \tag{8} \label{eq:utxo_props_subtractdom_remove_dom}
+  \label{lem:utxo_props_subtractdom_remove_dom}
 \\
-  \mathit{ins} \subtractdom u
+  \mathit{ins} \phantom{)} & \subtractdom u
 & = ( \dom u \setminus \mathit{ins} ) \restrictdom u
-  \tag{9}
-\end{alignat}
+%
+\end{IEEEeqnarray}
 \label{lem:utxo_props}
 \end{lemma}
 
 We omit proofs for most of these properties, as they are straight-forward.
 Here is just one example:
 %
-\begin{proof}[Proof (Lemma~\ref{lem:utxo_props}.\ref{eq:utxo_props_restrictdom_union})]
+\begin{proof}[Proof (Lemma~\ref{lem:utxo_props_restrictdom_union})]
 \begin{align*}
   & ~ \mathit{ins} \restrictdom (u \cup v) \\
 = & ~ \{ i \mapsto o \mid i \mapsto o \in (u \cup v), i \in \mathit{ins} \} \\
@@ -345,16 +348,16 @@ in the set. Formally
 There are a couple useful lemmas about $\mathsf{balance}$ distributing over
 other operators.
 %
-\begin{align}
+\begin{IEEEeqnarray}{LLR}
     \mathsf{balance} ~ (u \cup v)
 & = \mathsf{balance} ~ u + \mathsf{balance} ~ v
-& \text{if } \dom u \cap \dom v = \emptyset
-  \tag{1} \label{eq:balance_props_minus}
+& \qquad \text{if } \dom u \cap \dom v = \emptyset
+  \label{lem:balance_props_minus}
 \\
   \mathsf{balance} ~ (\mathit{ins} \subtractdom u)
 & = \mathsf{balance} ~ u - \mathsf{balance} ~ (\mathit{ins} \restrictdom u)
-  \tag{2} \label{eq:balance_props_union}
-\end{align}
+  \label{lem:balance_props_union}
+\end{IEEEeqnarray}
 %
 \label{lem:balance_props}
 \end{lemma}
@@ -483,7 +486,7 @@ we can define a function that computes only the ``new'' outputs from a block
 We can then prove that $\mathsf{updateUtxo}$ adds precisely the new outputs
 of a block to the UTxO:
 %
-\begin{lemma} \label{lemma:update_remove_dom}
+\begin{lemma} \label{lem:update_remove_dom}
 \begin{math}
 \dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u  = \mathsf{new} ~ b
 \end{math}
@@ -494,7 +497,7 @@ of a block to the UTxO:
   & ~ \dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u \\
 = & ~ \dom u \subtractdom \Bigl( \mathsf{txins} ~ b \subtractdom (u \cup (\mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}})) \Bigr) \\
 = & ~ (\dom u \cup \mathsf{txins} ~ b) \subtractdom (u \cup (\mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}})) \\
-= & ~ (\dom u \cup \mathsf{txins} ~ b) \subtractdom (\mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}}) & \text{\{ Lemma~\ref{lem:utxo_props}.\ref{eq:utxo_props_subtractdom_remove_dom} \}} \\
+= & ~ (\dom u \cup \mathsf{txins} ~ b) \subtractdom (\mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}}) & \text{\{ Lemma~\ref{lem:utxo_props_subtractdom_remove_dom} \}} \\
 = & ~ \mathsf{txins} ~ b \subtractdom (\mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}}) = \mathsf{new} ~ b & \text{\{ Precondition to $\mathsf{applyBlock}$ \}}
 \end{align*}
 \end{proof}
@@ -531,12 +534,12 @@ multiple in-flight transactions that depend on each other. We disallow this
 for pragmatic reasons (long chains of pending transactions make it more
 difficult for nodes to resubmit transactions that for some reason did not
 get included in the blockchain). However, as we will see later, once
-we add support for rollback to the wallet we cannot assume anymore that
+we add support for rollback to the wallet we cannot guarantee anymore that
 there are no dependent pending transactions, even with this side condition.
 
 One simple property of $\mathsf{updatePending}$ we will need later is that
 %
-\begin{lemma} \label{lemma:updatePending_is_filter}
+\begin{lemma} \label{lem:updatePending_is_filter}
 \begin{equation*}
 \mathsf{updatePending} ~ b ~ \mathit{pending} \subseteq \mathit{pending}
 \end{equation*}
@@ -584,27 +587,27 @@ Given these invariants, we can prove a few simple lemmas.
 \dom(\mathsf{available} ~ (\mathit{utxo}, \mathit{pending}))
 \subseteq \dom(\mathit{utxo})
 \end{equation*}
-\label{lemma:dom_available}
+\label{lem:dom_available}
 \end{lemma}
 
 \begin{proof}
 Follows immediately from
-Lemma~\ref{lem:utxo_props}.\ref{eq:utxo_props_subtractdom_subseteq}.
+Lemma~\ref{lem:utxo_props_subtractdom_subseteq}.
 \end{proof}
 
 \begin{lemma}[Change not in UTxO]
 \begin{equation*}
 \dom (\mathsf{change} ~ \mathit{pending}) \cap \dom(utxo) = \emptyset
 \end{equation*}
-\label{lemma:change_vs_utxo}
+\label{lem:change_vs_utxo}
 \end{lemma}
 
 \begin{proof}
 Follows from Invariant~\ref{inv:change_vs_available}
-and Lemma~\ref{lemma:dom_available}.
+and Lemma~\ref{lem:dom_available}.
 \end{proof}
 
-Lemma~\ref{lemma:change_vs_utxo} is not very deep. All new transactions should
+Lemma~\ref{lem:change_vs_utxo} is not very deep. All new transactions should
 have fresh IDs, and thus cannot be in the existing wallet UTxO.
 
 Finally we can state a lemma that relates $\mathsf{change}$, $\mathsf{available}$,
@@ -612,21 +615,19 @@ and $\mathsf{total}$:
 %
 \begin{lemma}
 Given a wallet $w = (\mathit{utxo}, \mathit{pending})$,
-\begin{align}
-& \mathsf{change} ~ \mathit{pending} \cup \mathsf{available} ~ w = \mathsf{total} ~ w
-  \tag{1} \label{eq:total_props_sets} \\
-& \mathsf{balance} ~ (\mathsf{change} ~ \mathit{pending}) + \mathsf{balance} ~ (\mathsf{available} ~ w) = \mathsf{balance} ~ (\mathsf{total} ~ w)
-  \tag{2} \label{eq:total_props_balance}
-\end{align}
-\label{lemma:total_props}
+\begin{IEEEeqnarray}{LLCLLLL}
+& \mathsf{change} ~ \mathit{pending} & \cup && \mathsf{available} ~ w & = & \mathsf{total} ~ w
+  \label{lem:total_props_sets} \\
+\mathsf{balance} ~ ( & \mathsf{change} ~ \mathit{pending}) & + & \mathsf{balance} ~ ( & \mathsf{available} ~ w) & = \mathsf{balance} ~ (& \mathsf{total} ~ w)
+  \label{lem:total_props_balance}
+\end{IEEEeqnarray}
+\label{lem:total_props}
 \end{lemma}
 %
 \begin{proof}
-(\ref{lemma:total_props}.\ref{eq:total_props_sets}) follows directly from
-the definition.
-(\ref{lemma:total_props}.\ref{eq:total_props_balance}) follows from
-(\ref{lemma:total_props}.\ref{eq:total_props_sets}) and
-Lemma~\ref{lem:balance_props}.\ref{eq:balance_props_union} with
+(\ref{lem:total_props_sets}) follows directly from the definition.
+(\ref{lem:total_props_balance}) follows from (\ref{lem:total_props_sets}) and
+Lemma~\ref{lem:balance_props_union} with
 Invariant~\ref{inv:change_vs_available}.
 \end{proof}
 
@@ -740,7 +741,7 @@ t & = \mathsf{totalBalance} ~ (utxo, pending)
 a & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending)) \\
 t & = \mathsf{balance} ~ (\mathsf{available} ~ (utxo, pending) \cup \mathsf{change} ~ pending)
 %
-\intertext{Use Lemma~\ref{lem:balance_props}.\ref{eq:balance_props_union} to
+\intertext{Use Lemma~\ref{lem:balance_props_union} to
 distribute $\mathsf{balance}$ over $\cup$. The lemma's antecedent is satisfied
 by Invariant~\ref{inv:change_vs_available}.}
 %
@@ -754,7 +755,7 @@ a & = \mathsf{balance} ~ (\mathsf{txins} ~ pending \subtractdom utxo) \\
 t & = a + \mathsf{balance} ~ (\mathsf{change} ~ pending)
 %
 \intertext{Finally, we apply
-Lemma~\ref{lem:balance_props}.\ref{eq:balance_props_minus} to distribute
+Lemma~\ref{lem:balance_props_minus} to distribute
 $\mathsf{balance}$ over $\subtractdom$, to get}
 %
 a & = \mathsf{balance} ~ utxo - \mathsf{balance} ~ (\mathsf{txins} ~ pending \restrictdom utxo)
@@ -811,14 +812,14 @@ utxo^+        & = \mathsf{txouts} ~ b \restrictrange \mathsf{TxOut_{ours}} \\
 utxo^\prime   & = \mathsf{txins} ~ b \subtractdom (utxo \cup utxo^+) \\
 \sigma^\prime & = \mathsf{balance} ~ (\mathsf{txins} ~ b \subtractdom (utxo \cup utxo^+))
 %
-\intertext{Applying Lemma~\ref{lem:balance_props}.\ref{eq:balance_props_minus}
+\intertext{Applying Lemma~\ref{lem:balance_props_minus}
 to distribute $\mathsf{balance}$ over $\subtractdom$ gives us}
 %
 \sigma^\prime & = \mathsf{balance} ~ (utxo \cup utxo^+) - \mathsf{balance} ~ (\mathsf{txins} ~ b \restrictdom (utxo \cup utxo^+)) \\
 %
 \intertext{Relying on the precondition to $\mathsf{applyBlock}$, we can apply
-Lemma~\ref{lem:balance_props}.\ref{eq:balance_props_union} to distribute
-$\mathsf{balance}$ over $\cup$ to give us}
+Lemma~\ref{lem:balance_props_union} to distribute $\mathsf{balance}$ over $\cup$
+to give us}
 %
 \sigma^\prime & = \mathsf{balance} ~ utxo + \mathsf{balance} ~ utxo^+ - \mathsf{balance} ~ (\mathsf{txins} ~ b \restrictdom (utxo \cup utxo^+)) \\
               & = \sigma + \mathsf{balance} ~ utxo^+ - \mathsf{balance} ~ (\mathsf{txins} ~ b \restrictdom (utxo \cup utxo^+))
@@ -950,14 +951,14 @@ we still pass in \emph{all} inputs of the block. However, we also have that
 \begin{proof}
 This reduced set of inputs is sufficient for the definitions of
 $\mathit{utxo}^-$ and $\mathit{utxo}^\prime$, since by
-Lemma~\ref{lem:utxo_props}.\ref{eq:utxo_props_restrictdom_dom}
+Lemma~\ref{lem:utxo_props_restrictdom_dom}
 %
 \begin{equation*}
   \Bigl( \mathsf{txins} ~ b \cap \dom (\mathit{utxo} \cup \mathit{utxo}^+) \Bigr) \restrictdom (utxo \cup \mathit{utxo}^+) \\
 = \mathsf{txins} ~ b \restrictdom (utxo \cup \mathit{utxo}^+)
 \end{equation*}
 %
-and by Lemma~\ref{lem:utxo_props}.\ref{eq:utxo_props_subtractdom_dom}
+and by Lemma~\ref{lem:utxo_props_subtractdom_dom}
 %
 \begin{equation*}
   \Bigl( \mathsf{txins} ~ b \cap \dom (\mathit{utxo} \cup \mathit{utxo}^+) \Bigr) \subtractdom (utxo \cup \mathit{utxo}^+) \\
@@ -1109,7 +1110,7 @@ continues to ensure that we cannot introduce any \emph{new} dependent pending
 transactions. This is still useful for keeping the number of dependent
 transactions down.
 
-\begin{lemma} \label{lemma:rollback_applyBlock_id}
+\begin{lemma} \label{lem:rollback_applyBlock_id}
 \begin{equation*}
 \mathsf{rollback} \circ \mathsf{applyBlock} ~ b = \mathsf{id}
 \end{equation*}
@@ -1117,14 +1118,14 @@ transactions down.
 
 \begin{proof}
 \begin{align*}
-    & \mathsf{rollback} ~ (\mathsf{applyBlock} ~ b ~ ((\mathit{utxo}, \mathit{pending}) : \mathit{checkpoints})) \\
-= ~ & \mathsf{rollback} ~ (( \mathsf{updateUTxO} ~ b ~ \mathit{utxo}
-         , \mathsf{updatePending} ~ b ~ \mathit{pending}
+    & \mathsf{rollback} ~ (\mathsf{applyBlock} ~ b ~ ((u, p) : \mathit{cs})) \\
+= ~ & \mathsf{rollback} ~ (( \mathsf{updateUTxO} ~ b ~ u
+         , \mathsf{updatePending} ~ b ~ p
          )
-         : (\mathit{utxo}, \mathit{pending}) : \mathit{checkpoints}
+         : (u, p) : \mathit{cs}
          ) \\
-= ~ & (\mathit{utxo}, (\mathsf{updatePending} ~ b ~ \mathit{pending}) \cup \mathit{pending}) : \mathit{checkpoints} \\
-= ~ & (\mathit{utxo}, \mathit{pending}) : \mathit{checkpoints} & \text{\{ Lemma~\ref{lemma:updatePending_is_filter} \}}
+= ~ & (u, (\mathsf{updatePending} ~ b ~ p) \cup p) : \mathit{cs} \\
+= ~ & (u, \mathit{pending}) : \mathit{cs} & \text{\{ Lemma~\ref{lem:updatePending_is_filter} \}}
 \end{align*}
 \end{proof}
 
@@ -1135,7 +1136,7 @@ Moreover, we have
 \mathsf{rollback} \circ \mathsf{newPending} ~ tx \circ \mathsf{applyBlock} ~ b
 = \mathsf{newPending} ~ tx
 \end{equation*}
-(modulo checking side conditions).
+(if we ignore the side condition to $\mathsf{newPending}$).
 \end{lemma}
 
 \begin{proof}
@@ -1152,7 +1153,7 @@ Moreover, we have
          : (\mathit{u}, \mathit{p}) : \mathit{cs}
          ) \\
 = ~ & (\mathit{u}, ((\mathsf{updatePending} ~ b ~ \mathit{p}) \cup \{tx\}) \cup \mathit{p}) : \mathit{cs} \\
-= ~ & (\mathit{u}, \mathit{p} \cup \{tx\}) : \mathit{cs} & \text{\{ Lemma~\ref{lemma:updatePending_is_filter} \}}
+= ~ & (\mathit{u}, \mathit{p} \cup \{tx\}) : \mathit{cs} & \text{\{ Lemma~\ref{lem:updatePending_is_filter} \}}
 \end{align*}
 \end{proof}
 
@@ -1209,7 +1210,7 @@ Figure~\ref{fig:model_with_expected_UTxO}.
 %
 \begin{align*}
 & \mathsf{applyBlock} ~ b ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
-& \qquad ~ (\mathsf{updateUTxO} ~ b ~ \mathit{utxo}, \mathsf{updatePending} ~ b ~ \mathit{pending}, \mathsf{updateExpected} ~ b ~ \mathit{expected}) \\
+& \qquad \phantom{:{}} ~ (\mathsf{updateUTxO} ~ b ~ \mathit{utxo}, \mathsf{updatePending} ~ b ~ \mathit{pending}, \mathsf{updateExpected} ~ b ~ \mathit{expected}) \\
 & \qquad : (\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints} \\
 & \mathsf{newPending} ~ \mathit{tx} ~ ((\mathit{utxo}, \mathit{pending}, \mathit{expected}) : \mathit{checkpoints}) = \\
 & \qquad (\mathit{utxo}, \mathit{pending} \cup \{\mathit{tx}\}, \mathit{expected}) : \mathit{checkpoints} \\
@@ -1228,7 +1229,7 @@ Figure~\ref{fig:model_with_expected_UTxO}.
 
 A trivial fact we need later is that
 %
-\begin{lemma} \label{lemma:updateExpected_is_filter}
+\begin{lemma} \label{lem:updateExpected_is_filter}
 \begin{math}
 \mathsf{updateExpected} ~ b ~ \mathit{expected} \subseteq \mathit{expected}
 \end{math}
@@ -1278,7 +1279,7 @@ can, in a sense, ``anticipate'' what we think the future might look like:
 \end{definition}
 
 We can now formalize the above intuition, providing the moral equivalent
-of Lemma~\ref{lemma:rollback_applyBlock_id} in the last section, where we didn't
+of Lemma~\ref{lem:rollback_applyBlock_id} in the last section, where we didn't
 track the expected UTxO yet.
 
 \begin{lemma}
@@ -1292,8 +1293,8 @@ track the expected UTxO yet.
   & ~ \mathsf{rollback} ~ \Bigl( \mathsf{applyBlock} ~ b ~ ((u, p, e) : \mathit{cs}) \Bigr) \\
 = & ~ \mathsf{rollback} ~ ((\mathsf{updateUTxO} ~ b ~ u, \mathsf{updatePending} ~ b ~ p, \mathsf{updateExpected} ~ b ~ e) : (u, p, e) : \mathit{cs}) \\
 = & ~ ((u, (\mathsf{updatePending} ~ b ~ p) \cup p,  (\mathsf{updateExpected} ~ b ~ e) \cup e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) \\
-= & ~ ((u, p, e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) & \text{\{ Lemma~\ref{lemma:updateExpected_is_filter} \} } \\
-= & ~ ((u, p, e \cup \mathsf{new} ~ b) : \mathit{cs}) = \mathsf{anticipate} ~ b ~ ((u, p, e) : \mathit{cs}) & \text{\{ Lemma~\ref{lemma:update_remove_dom} \} }
+= & ~ ((u, p, e \cup (\dom u \subtractdom \mathsf{updateUTxO} ~ b ~ u)) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:updateExpected_is_filter} \} } \\
+= & ~ ((u, p, e \cup \mathsf{new} ~ b) : \mathit{cs}) = \mathsf{anticipate} ~ b ~ ((u, p, e) : \mathit{cs}) & \text{\{ Lemma~\ref{lem:update_remove_dom} \} }
 \end{align*}
 \end{proof}
 
